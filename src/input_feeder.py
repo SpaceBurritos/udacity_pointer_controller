@@ -29,17 +29,17 @@ class InputFeeder:
         else:
             self.cap=cv2.imread(self.input_file)
 
-    def next_batch(self):
+    def next_batch(self, media_type):
         '''
         Returns the next image from either a video file or webcam.
         If input_type is 'image', then it returns the same image.
         '''
+        if media_type == "image":
+            cv2.imshow(self.cap)
+            return self.cap.read()
         while True:
             for _ in range(10):
                 _, frame=self.cap.read()
-                print("hey")
-                #cv2.imshow("frame", frame)
-                print("hoy")
             yield frame
 
 
