@@ -13,22 +13,17 @@ face_detection_name = "../resources/face-detection-adas-binary-0001/FP32-INT1/fa
 gaze_estimation_name = "../resources/gaze-estimation-adas-0002/FP32/gaze-estimation-adas-0002"
 head_pose_estimation_name = "../resources/head-pose-estimation-adas-0001/FP32/head-pose-estimation-adas-0001"
 facial_landmarks_name = "../resources/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009"
-video = "../bin/demo.avi"
-image = "../bin/staring.jpg"
-
 
 def build_argparser():
     """
     Parse command line arguments.
-
-    :return: command line arguments
     """
     parser = ArgumentParser()
 
-    parser.add_argument('--media_file', type=str, required=False,
-                        default=video, help="Specify the path to the file")
-    parser.add_argument('--media_type', type=str, required=False,
-                        default="video", help="Specify the type of file: video or cam")
+    parser.add_argument('--media_file', type=str, required=True,
+                        help="Specify the path to the file (type none if a webcam will be used")
+    parser.add_argument('--media_type', type=str, required=True,
+                        help="Specify the type of file: video or cam")
     parser.add_argument('--speed', required=False, type=str, default="fast",
                         help="Specify the speed of the cursor: slow, medium or fast"
                             "(fast by default)")
@@ -63,6 +58,7 @@ def main(args):
     media_path = args.media_file
     toggle_UI = False if args.show_video.lower() == "false" else True
     batch_size = args.batch_size
+    iterations = 1 if media_type == "cam" else int(args.iterations)
     #initialize the mouse object
     mouse = MouseController(precision, speed)
 
@@ -83,7 +79,7 @@ def main(args):
     face_detection = Face_Detection(face_detection_name)
     face_detection.load_model()
 
-    for _ in range(int(args.iterations)):
+    for _ in range(iterations):
         feed.load_data()
         times = np.zeros((8, ))
         counter_frames = 0
