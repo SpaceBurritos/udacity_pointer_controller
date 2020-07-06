@@ -11,13 +11,14 @@ import cv2
 from numpy import ndarray
 
 class InputFeeder:
-    def __init__(self, input_type, input_file=None):
+    def __init__(self, input_type, batch_size, input_file=None):
         '''
         input_type: str, The type of input. Can be 'video' for video file, 'image' for image file,
                     or 'cam' to use webcam feed.
         input_file: str, The file that contains the input image or video file. Leave empty for cam input_type.
         '''
         self.input_type=input_type
+        self.batch_size = batch_size
         if input_type=='video' or input_type=='image':
             self.input_file=input_file
     
@@ -38,7 +39,7 @@ class InputFeeder:
             cv2.imshow(self.cap)
             return self.cap.read()
         while True:
-            for _ in range(10):
+            for _ in range(self.batch_size):
                 _, frame=self.cap.read()
             yield frame
 
