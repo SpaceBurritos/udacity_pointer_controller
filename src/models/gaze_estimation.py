@@ -7,6 +7,7 @@ from openvino.inference_engine import IENetwork, IECore
 import sys
 import cv2
 import numpy as np
+import math
 
 class Gaze_Estimation:
     '''
@@ -14,7 +15,7 @@ class Gaze_Estimation:
     '''
     def __init__(self, model_name, device='CPU', extensions=None):
         '''
-        TODO: Use this to set your instance variables.
+
         '''
         self.device = device
         self.model_weights = model_name + ".bin"
@@ -33,12 +34,11 @@ class Gaze_Estimation:
         self.input_name = [x for x in self.model.inputs]
         self.input_shape = self.model.inputs[self.input_name[0]].shape
         self.output_name = next(iter(self.model.outputs))
-
         self.output_shape = self.model.outputs[self.output_name].shape
 
     def load_model(self):
         '''
-        TODO: You will need to complete this method.
+
         This method is for loading the model to the device specified by the user.
         If your model requires any Plugins, this is where you can load them.
         '''
@@ -51,26 +51,17 @@ class Gaze_Estimation:
 
     def predict(self, left_eye, right_eye, head_pose):
         '''
-        TODO: You will need to complete this method.
+
         This method is meant for running predictions on the input image.
         '''
+        images = [head_pose, left_eye, right_eye]
+        input_dict = {i:e for i,e in zip(self.input_name, images)}
+        infer_request = self.network.start_async(request_id=0, inputs=input_dict)
+        infer_status = infer_request.wait()
+        if infer_status == 0:
+            output = infer_request.outputs
 
-        infer_request_head = self.network.start_async(request_id=0, inputs={self.input_name[0]: head_pose})
-        infer_status_head = infer_request_head.wait()
-        if infer_status_head == 0:
-            output_head = infer_request_head.outputs
-
-        infer_request_left = self.network.start_async(request_id=0, inputs={self.input_name[1]: left_eye})
-        infer_status_left = infer_request_left.wait()
-        if infer_status_left == 0:
-            output_left = infer_request_left.outputs
-
-        infer_request_right = self.network.start_async(request_id=0, inputs={self.input_name[2]: right_eye})
-        infer_status_right = infer_request_right.wait()
-        if infer_status_right == 0:
-            output_right = infer_request_right.outputs
-
-        return np.array([output_head["gaze_vector"][0], output_left["gaze_vector"][0], output_right["gaze_vector"][0]])
+        return output[self.output_name][0]#np.array([output_head["gaze_vector"][0], output_left["gaze_vector"][0], output_right["gaze_vector"][0]])
 
 
     def check_model(self):
@@ -91,4 +82,14 @@ class Gaze_Estimation:
         Before feeding the output of this model to the next model,
         you might have to preprocess the output. This function is where you can do that.
         '''
-        raise NotImplementedError
+
+        gaze_vector = outputs
+        roll = gaze_vector[2]
+        gaze_vector = gaze_vector/np.linalg.norm(gaze_vector)
+        cs = math.cos(roll * math.pi/180)
+        sn = math.sin(roll*math.pi/180)
+
+        x = gaze_vector[0] * cs + gaze_vector[1] * sn
+        y = gaze_vector[0] * sn + gaze_vector[1] * cs
+
+        return x, y, gaze_vector

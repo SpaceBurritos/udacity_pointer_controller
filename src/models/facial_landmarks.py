@@ -13,7 +13,7 @@ class Facial_Landmark:
     '''
     def __init__(self, model_name, device='CPU', extensions=None):
         '''
-        TODO: Use this to set your instance variables.
+
         '''
         self.device = device
         self.model_weights = model_name + ".bin"
@@ -36,7 +36,7 @@ class Facial_Landmark:
 
     def load_model(self):
         '''
-        TODO: You will need to complete this method.
+
         This method is for loading the model to the device specified by the user.
         If your model requires any Plugins, this is where you can load them.
         '''
@@ -49,7 +49,7 @@ class Facial_Landmark:
 
     def predict(self, image):
         '''
-        TODO: You will need to complete this method.
+
         This method is meant for running predictions on the input image.
         '''
         infer_request = self.network.start_async(request_id=0, inputs={self.input_name:image})
