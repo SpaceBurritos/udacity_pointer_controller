@@ -30,6 +30,9 @@ def build_argparser():
     parser.add_argument('--precision', required=False, type=str, default="high",
                         help="Specify the precision of the mouse: low, medium or high"
                             "(high by default)")
+    parser.add_argument('--device', required=False, type=str, default="CPU",
+                        help="Specify the hardware"
+                            "(CPU by default)")
     parser.add_argument('--get_perf_counts', required=False, type=str, default="false",
                         help="Benchmark the running times of different parts"
                             "of the preprocessing and inference pipeline"
@@ -58,6 +61,7 @@ def main(args):
     media_path = args.media_file
     toggle_UI = False if args.show_video.lower() == "false" else True
     batch_size = args.batch_size
+    device = args.device
     iterations = 1 if media_type == "cam" else int(args.iterations)
     #initialize the mouse object
     mouse = MouseController(precision, speed)
@@ -67,22 +71,29 @@ def main(args):
 
 
     # Initialize and load the gaze estimation model
-    gaze_estimation = Gaze_Estimation(gaze_estimation_name)
+    gaze_estimation = Gaze_Estimation(gaze_estimation_name, device)
     gaze_estimation.load_model()
+
     # Initialize and load the head pose estimation model
-    head_pose = Head_Pose_Estimation(head_pose_estimation_name)
+    head_pose = Head_Pose_Estimation(head_pose_estimation_name, device)
     head_pose.load_model()
+
     # Initialize and load the facial landmarks model
-    facial_landmarks = Facial_Landmark(facial_landmarks_name)
+    facial_landmarks = Facial_Landmark(facial_landmarks_name,device)
     facial_landmarks.load_model()
+
     # Initialize and model the face detection model
-    face_detection = Face_Detection(face_detection_name)
+    face_detection = Face_Detection(face_detection_name, device)
     face_detection.load_model()
 
     for _ in range(iterations):
+
         feed.load_data()
+
+        #This will be used as a way to keep track of the average time for the preprocessing and inference of the models
         times = np.zeros((8, ))
         counter_frames = 0
+
         if media_type != "image":
             width = feed.cap.get(3)
             height = feed.cap.get(4)
@@ -91,46 +102,23 @@ def main(args):
         try:
             for frame in feed.next_batch(media_type):
                 counter_frames += 1
+
                 # Process the input image through the face detection first
                 # So we can ignore anything that isn't the head
-                start_time = time.time()
-                p_image_f = face_detection.preprocess_input(frame)
-                times[0] += time.time() - start_time
-                start_time = time.time()
-                output_f = face_detection.predict(p_image_f)
-                times[1] += time.time() - start_time
-                f_image = face_detection.preprocess_output(frame, output_f, width, height)
-                f_height, f_width, _ = f_image.shape
+                f_image, f_height, f_width, times = face_detection.predict(frame, width, height, times)
 
                 # Then we process the output through the head pose estimation
-                start_time = time.time()
-                p_image_h = head_pose.preprocess_input(f_image)
-                times[2] += time.time() - start_time
-                start_time = time.time()
-                output_h = head_pose.predict(p_image_h)
-                times[3] += time.time() - start_time
-                head_position = head_pose.preprocess_output(output_h)
+                head_position, times = head_pose.predict(f_image, times)
 
                 # And we get the coordinates of the eyes
-                start_time = time.time()
-                p_image_l = facial_landmarks.preprocess_input(f_image)
-                times[4] += time.time() - start_time
-                start_time = time.time()
-                output_l = facial_landmarks.predict(p_image_l)
-                times[5] += time.time() - start_time
-                left_eye_frame, right_eye_frame = facial_landmarks.preprocess_output(output_l, f_image, f_width, f_height)
+                left_eye_frame, right_eye_frame, times = facial_landmarks.predict(f_image, f_width, f_height, times)
 
                 # We use the coordinates and the face detection to get an estimate of the gaze
-                start_time = time.time()
-                left_eye = gaze_estimation.preprocess_input(left_eye_frame)
-                right_eye = gaze_estimation.preprocess_input(right_eye_frame)
-                times[6] += time.time() - start_time
-                start_time = time.time()
-                output_g = gaze_estimation.predict(left_eye, right_eye, head_position)
-                times[7] += time.time() - start_time
+                x,y, gaze_vector, times = gaze_estimation.predict(left_eye_frame, right_eye_frame, head_position, times)
 
-                x, y, gaze_vector = gaze_estimation.preprocess_output(output_g)
+                #generates the movement on the cursor
                 mouse.move(x,y)
+
                 if perf_counts:
                     cv2.putText( frame, "Preprocess Face Detection: " + str(times[0]/counter_frames* 1000) + " ms", (0,50),
                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (209, 80, 0), 3)
