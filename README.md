@@ -27,12 +27,13 @@ The final structure of the project is the one shown next:
 │    │  ├─face_detection.py  
 │    │  ├─facial_landmarks.py  
 │    │  ├─gaze_estimation.py  
-│    │  └─head_pose_estimation.py  
+│    │  ├─head_pose_estimation.py  
+│    │  └─model.py  
 │    ├─input_feeder.py  
 │    ├─main.py  
 │    └─mouse_controller.py  
 ├─README.md  
-├─requirements.txt  
+└─requirements.txt  
 
 The dependencies of this project can be installed on the terminal with `pip3 install -r requirements.txt`
 
@@ -69,6 +70,7 @@ The `--media_file` is where you specify the path to the media file that you want
 The `--media_type` is where you specify the type of media that you are going to use, either: a webcam or a video file (This is required)  
 The `--speed` is where you specify the speed of the cursor, the three options are: slow, medium or fast (fast by default)  
 The `--precision` is where you specify the precision of the mouse, there are three options: low, medium or high (high by default)  
+The `--device` is where you specify the hardware that will be used to run the project
 The `--get_perf_counts` is used to show the time taken by the different parts of the different inference models used 
 this can be either true or false (false by default)  
 The `--iterations` is used for testing purposes, it iterates over the video file (1 by default)  
