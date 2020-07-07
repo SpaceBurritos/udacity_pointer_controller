@@ -5,6 +5,7 @@ This has been provided just to give you an idea of how to structure your model c
 from openvino.inference_engine import IENetwork, IECore
 import sys
 import cv2
+import time
 
 class Face_Detection:
     '''
@@ -48,15 +49,22 @@ class Face_Detection:
             sys.exit(1)
         #raise NotImplementedError
 
-    def predict(self, image):
+    def predict(self, image, w, h, times):
         '''
         This method is meant for running predictions on the input image.
         '''
-        infer_request = self.network.start_async(request_id=0, inputs={self.input_name: image})
+        start_time = time.time()
+        p_image = self.preprocess_input(image)
+        times[0] += time.time() - start_time
+        start_time = time.time()
+        infer_request = self.network.start_async(request_id=0, inputs={self.input_name: p_image})
         infer_status = infer_request.wait()
         if infer_status == 0:
             output = infer_request.outputs[self.output_name]
-        return output
+        times[1] += time.time() - start_time
+        f_image = self.preprocess_output(image, output, w, h)
+        height, width, _ = f_image.shape
+        return f_image, height, width, times
 
     def check_model(self):
         raise NotImplementedError

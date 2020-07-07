@@ -6,6 +6,7 @@ This has been provided just to give you an idea of how to structure your model c
 from openvino.inference_engine import IENetwork, IECore
 import sys
 import cv2
+import time
 
 class Head_Pose_Estimation:
     '''
@@ -43,19 +44,25 @@ class Head_Pose_Estimation:
         supported_layers = self.core.query_network(network=self.model, device_name=self.device)
         unsupported_layers = [l for l in self.model.layers.keys() if l not in supported_layers]
         if len(unsupported_layers) > 0:
-            print("Usupported Layers!")
+            print("Unsupported Layers!")
             sys.exit(1)
 
-    def predict(self, image):
+    def predict(self, image, times):
         '''
 
         This method is meant for running predictions on the input image.
         '''
-        infer_request = self.network.start_async(request_id=0, inputs={self.input_name: image})
+        start_time = time.time()
+        p_image = self.preprocess_input(image)
+        times[2] += time.time() - start_time
+        start_time = time.time()
+        infer_request = self.network.start_async(request_id=0, inputs={self.input_name: p_image})
         infer_status = infer_request.wait()
         if infer_status == 0:
             output = infer_request.outputs
-        return output
+        times[3] += time.time() - start_time
+        preprocess_output = self.preprocess_output(output)
+        return preprocess_output, times
 
 
     def check_model(self):

@@ -6,6 +6,7 @@ This has been provided just to give you an idea of how to structure your model c
 from openvino.inference_engine import IENetwork, IECore
 import sys
 import cv2
+import time
 
 class Facial_Landmark:
     '''
@@ -47,16 +48,22 @@ class Facial_Landmark:
             print("Usupported Layers!")
             sys.exit(1)
 
-    def predict(self, image):
+    def predict(self, image, width, height, times):
         '''
 
         This method is meant for running predictions on the input image.
         '''
-        infer_request = self.network.start_async(request_id=0, inputs={self.input_name:image})
+        start_time = time.time()
+        p_image = self.preprocess_input(image)
+        times[4] += time.time() - start_time
+        start_time = time.time()
+        infer_request = self.network.start_async(request_id=0, inputs={self.input_name: p_image})
         infer_status = infer_request.wait()
         if infer_status == 0:
             output = infer_request.outputs[self.output_name]
-        return output
+        times[5] += time.time() - start_time
+        left_eye, right_eye = self.preprocess_output(output, image, width, height)
+        return left_eye, right_eye, times
 
     def check_model(self):
         raise NotImplementedError

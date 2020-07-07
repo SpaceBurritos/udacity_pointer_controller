@@ -8,6 +8,7 @@ import sys
 import cv2
 import numpy as np
 import math
+import time
 
 class Gaze_Estimation:
     '''
@@ -49,19 +50,26 @@ class Gaze_Estimation:
             print("Usupported Layers!")
             sys.exit(1)
 
-    def predict(self, left_eye, right_eye, head_pose):
+    def predict(self, left_eye, right_eye, head_pose, times):
         '''
 
         This method is meant for running predictions on the input image.
         '''
-        images = [head_pose, left_eye, right_eye]
+        start_time = time.time()
+        l_image = self.preprocess_input(left_eye)
+        r_image = self.preprocess_input(right_eye)
+        times[6] += time.time() - start_time
+        images = [head_pose, l_image, r_image]
         input_dict = {i:e for i,e in zip(self.input_name, images)}
+        start_time = time.time()
         infer_request = self.network.start_async(request_id=0, inputs=input_dict)
         infer_status = infer_request.wait()
         if infer_status == 0:
             output = infer_request.outputs
+        times[7] += time.time() - start_time
+        x, y, gaze_vector = self.preprocess_output(output[self.output_name][0])
 
-        return output[self.output_name][0]#np.array([output_head["gaze_vector"][0], output_left["gaze_vector"][0], output_right["gaze_vector"][0]])
+        return x,y,gaze_vector, times
 
 
     def check_model(self):
