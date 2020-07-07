@@ -1,18 +1,14 @@
 import cv2
 import numpy as np
 from argparse import ArgumentParser
-import time
-from models.face_detection import Face_Detection
-from models.facial_landmarks import Facial_Landmark
-from models.gaze_estimation import Gaze_Estimation
-from models.head_pose_estimation import Head_Pose_Estimation
 from mouse_controller import MouseController
 from input_feeder import InputFeeder
+from models.model import Model
 
-face_detection_name = "../resources/face-detection-adas-binary-0001/FP32-INT1/face-detection-adas-binary-0001"
-gaze_estimation_name = "../resources/gaze-estimation-adas-0002/FP32/gaze-estimation-adas-0002"
-head_pose_estimation_name = "../resources/head-pose-estimation-adas-0001/FP32/head-pose-estimation-adas-0001"
-facial_landmarks_name = "../resources/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009"
+face_detection = "../resources/face-detection-adas-binary-0001/FP32-INT1/face-detection-adas-binary-0001"
+gaze_estimation = "../resources/gaze-estimation-adas-0002/FP32/gaze-estimation-adas-0002"
+head_pose_estimation = "../resources/head-pose-estimation-adas-0001/FP32/head-pose-estimation-adas-0001"
+facial_landmarks = "../resources/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009"
 
 def build_argparser():
     """
@@ -43,48 +39,40 @@ def build_argparser():
     parser.add_argument('--batch_size', required=False, type=int, default=10,
                         help="Number of frames skipped between inferences"
                              "Specify the number of frames to be skipped between inferences (10 by default)")
-    parser.add_argument('--show_video', required=False, default="True",
+    parser.add_argument('--show_video', required=False, default=True,
                         help="Indicate if the video is shown or not"
                              "Specify if True or False (True by default)")
 
     return parser
 
 def main(args):
+
+
+    # getting the arguments
     if args.get_perf_counts.lower() == "true":
         perf_counts = True
     elif args.get_perf_counts.lower() == "false":
         perf_counts = False
-
     precision = args.precision.lower()
     speed = args.speed.lower()
     media_type = args.media_type.lower()
     media_path = args.media_file
-    toggle_UI = False if args.show_video.lower() == "false" else True
+    toggle_ui = args.show_video
+    print(toggle_ui)
     batch_size = args.batch_size
     device = args.device
     iterations = 1 if media_type == "cam" else int(args.iterations)
+
+
     #initialize the mouse object
     mouse = MouseController(precision, speed)
 
     # Initialize the input feeder
     feed = InputFeeder(media_type, batch_size, media_path)
 
-
-    # Initialize and load the gaze estimation model
-    gaze_estimation = Gaze_Estimation(gaze_estimation_name, device)
-    gaze_estimation.load_model()
-
-    # Initialize and load the head pose estimation model
-    head_pose = Head_Pose_Estimation(head_pose_estimation_name, device)
-    head_pose.load_model()
-
-    # Initialize and load the facial landmarks model
-    facial_landmarks = Facial_Landmark(facial_landmarks_name,device)
-    facial_landmarks.load_model()
-
-    # Initialize and model the face detection model
-    face_detection = Face_Detection(face_detection_name, device)
-    face_detection.load_model()
+    # Initialize and load the inference models
+    model = Model(face_detection, facial_landmarks, gaze_estimation, head_pose_estimation, device)
+    model.load_models()
 
     for _ in range(iterations):
 
@@ -102,20 +90,8 @@ def main(args):
         try:
             for frame in feed.next_batch(media_type):
                 counter_frames += 1
-
-                # Process the input image through the face detection first
-                # So we can ignore anything that isn't the head
-                f_image, f_height, f_width, times = face_detection.predict(frame, width, height, times)
-
-                # Then we process the output through the head pose estimation
-                head_position, times = head_pose.predict(f_image, times)
-
-                # And we get the coordinates of the eyes
-                left_eye_frame, right_eye_frame, times = facial_landmarks.predict(f_image, f_width, f_height, times)
-
-                # We use the coordinates and the face detection to get an estimate of the gaze
-                x,y, gaze_vector, times = gaze_estimation.predict(left_eye_frame, right_eye_frame, head_position, times)
-
+                #generates the prediction
+                x,y, gaze_vector, times = model.predict(frame, width, height, times)
                 #generates the movement on the cursor
                 mouse.move(x,y)
 
@@ -144,11 +120,9 @@ def main(args):
                     print("Inference Head Pose: " + str(times[5] / counter_frames * 1000) + " ms")
                     print("Preprocess Gaze Estimation: " + str(times[6] / counter_frames * 1000) + " ms")
                     print("Inference Gaze Estimation: " + str(times[7] / counter_frames * 1000) + " ms")
-                    if toggle_UI:
-                        cv2.imshow("Frame", frame)
-                else:
-                    cv2.imshow("Frame", frame)
 
+                if toggle_ui == True:
+                    cv2.imshow("Frame", frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
                 if cv2.waitKey(1) & 0xFF == ord('i'):
